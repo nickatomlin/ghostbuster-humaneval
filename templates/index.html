@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Human or AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    {% if correct is not none %}
+        <div class="result">
+            <p>You are {% if correct %}correct{% else %}wrong{% endif %}! This essay was written by {% if current_essay.source == 'ai' %}an AI{% else %}a human{% endif %}.</p>
+            <p>Your accuracy so far: {{ "%.1f"|format(accuracy) }}% ({{ examples_seen }} examples seen)</p>
+        </div>
+    {% endif %}
+    {% if not end %}
+        <div class="essay">
+            <p>{{ next_essay.text }}</p>
+        </div>
+        <form method="post">
+            <button type="submit" name="guess" value="human">Human</button>
+            <button type="submit" name="guess" value="ai">AI</button>
+        </form>
+    {% endif %}
+    {% if end %}
+        <p>You've gone through all the essays! Thanks for participating!</p>
+    {% endif %}
+</div>
+</body>
+</html>
