@@ -10,26 +10,57 @@ body {
     margin: auto;
 }
 
-.essay {
+h1 {
+    font-size: 1em;
+    color: #333;
+    text-align: center;
+    padding-top: 20px;
+}
+
+p {
+    font-size: 0.9em;
+    line-height: 1.6em;
+    color: #666;
+}
+
+.essay-container {
+    width: 50%;
     background: #fff;
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 5px;
+    /* 20px padding on left and right and 0px on top and bottom */
+    padding: 0 20px;
+    margin: auto;
+    margin-bottom: 20px;
     box-shadow: 2px 2px 12px #aaa;
+    overflow-y: auto;
+    height: 300px; /* Adjust the height as needed */
+    resize: vertical;
+}
+
+form {
+    text-align: center;
+    margin-bottom: 20px;
 }
 
 button {
-    padding: 10px;
-    margin: 5px;
+    background: #90b2d1;
     border: none;
-    border-radius: 5px;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    transition-duration: 0.4s;
     cursor: pointer;
 }
 
 button:hover {
-    background-color: #ddd;
+    background-color: white;
+    color: black;
 }
 
-.result {
-    margin-top: 15px;
+.feedback, .stats {
+    text-align: center;
+    margin-bottom: 20px;
 }

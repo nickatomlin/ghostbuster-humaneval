@@ -2,29 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Human or AI</title>
+    <title>ChatGPT Detection Game</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div class="container">
-    {% if correct is not none %}
-        <div class="result">
+    <div class="header"></div>
+        <h1>Were these essays written by humans or AI?</h1>
+        <p>This is human evaluation for the <a href="https://arxiv.org/abs/2305.15047">Ghostbuster</a> project. We're trying to evaluate how difficult it is to distinguish between human written and AI-written text, in order to establish a baseline for our <a href="https://ghostbuster.app">model</a>.</p>
+        <p>Your task is to read each essay displayed below and guess whether it was written by a human or an AI. Once you make a guess, you will immediately see whether you were correct, and a new essay will appear. Good luck!</p>
+    </div>
+    <div class="essay-container">
+        <p>{{ next_essay.text if next_essay else current_essay.text }}</p>
+    </div>
+    <div class="footer">
+        <form method="post" action="/">
+            <button type="submit" name="guess" value="{{ 'human' }}">Human</button>
+            <button type="submit" name="guess" value="{{ 'ai' }}">AI</button>
+        </form>
+        {% if correct is not none %}
+        <div class="feedback">
             <p>You are {% if correct %}correct{% else %}wrong{% endif %}! This essay was written by {% if current_essay.source == 'ai' %}an AI{% else %}a human{% endif %}.</p>
+        </div>
+        <div class="stats">
             <p>Your accuracy so far: {{ "%.1f"|format(accuracy) }}% ({{ examples_seen }} examples seen)</p>
         </div>
-    {% endif %}
-    {% if not end %}
-        <div class="essay">
-            <p>{{ next_essay.text }}</p>
-        </div>
-        <form method="post">
-            <button type="submit" name="guess" value="human">Human</button>
-            <button type="submit" name="guess" value="ai">AI</button>
-        </form>
-    {% endif %}
-    {% if end %}
-        <p>You've gone through all the essays! Thanks for participating!</p>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 </body>
 </html>
