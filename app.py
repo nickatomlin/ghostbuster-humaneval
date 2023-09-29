@@ -7,13 +7,38 @@ import uuid
 from flask import Flask, render_template, session, request, g
 from flask_session import Session
 
-with open("config.json", "r") as file:
-    config = json.load(file)
+import os
+import json
+
+# Try to get AWS credentials from environment variables first
+aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
+aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+region_name = os.environ.get('AWS_REGION_NAME')
+
+# If environment variables are not set, fall back to config.json
+if not aws_access_key_id or not aws_secret_access_key or not region_name:
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+            aws_access_key_id = config.get('AWS_ACCESS_KEY_ID')
+            aws_secret_access_key = config.get('AWS_SECRET_ACCESS_KEY')
+            region_name=config['AWS_REGION_NAME']
+    except FileNotFoundError:
+        print("Error: config.json not found.")
+    except json.JSONDecodeError:
+        print("Error: config.json is not a valid JSON file.")
+    except KeyError:
+        print("Error: AWS keys not found in config.json.")
+
+# At this point, if the AWS keys are None, you might want to handle it appropriately,
+# maybe raise an exception, or log an error message, depending on your use case.
+if not aws_access_key_id or not aws_secret_access_key or not region_name:
+    raise ValueError("AWS credentials not found in environment variables or config.json.")
 
 s3 = boto3.client('s3',
-    aws_access_key_id=config['AWS_ACCESS_KEY_ID'],
-    aws_secret_access_key=config['AWS_SECRET_ACCESS_KEY'],
-    region_name=config['AWS_REGION_NAME']
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key,
+    region_name=region_name
 )
 
 app = Flask(__name__)
