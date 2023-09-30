@@ -126,5 +126,22 @@ def before_request():
         session_id = session['session_id']
     g.session_id = session_id
 
+# @app.teardown_request
+# def upload_log(exception=None):
+#     session_id = g.get('session_id')
+#     if session_id:
+#         user_log = user_logs.get(session_id)
+#         if user_log and user_log['essays']:
+#             user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
+#             log_json = json.dumps(user_log)
+#             bucket_name = 'ghostbuster'
+#             key = f"user_logs/{session_id}.json"  # unique for each user session
+#             try:
+#                 s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
+#             except Exception as e:
+#                 app.logger.error("Unable to upload log to S3: %s", e)
+#         # Remove the log from the dictionary after uploading to S3.
+#         # user_logs.pop(session_id, None)
+
 if __name__ == "__main__":
     socketio.run(app, debug=True)
