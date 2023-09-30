@@ -61,27 +61,29 @@ user_logs = {}
 
 @app.route("/")
 def index():
-    session_id = session.get('session_id', str(uuid.uuid4()))
-    session['session_id'] = session_id
-    user_logs[session_id] = user_logs.get(session_id, {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0})
-    user_log = user_logs[session_id]
+    # session_id = session.get('session_id', str(uuid.uuid4()))
+    # session['session_id'] = session_id
+    # user_logs[session_id] = user_logs.get(session_id, {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0})
+    # user_log = user_logs[session_id]
 
-    current_index = user_log['current_index']
+    current_index = 0
     current_essay = all_essays[current_index]
     next_essay = all_essays[current_index + 1] if (current_index + 1) < len(all_essays) else None
 
     return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
+
 def upload_to_s3(session_id):
-    user_log = user_logs.get(session_id)
-    if user_log and user_log['essays']:
-        user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
-        log_json = json.dumps(user_log)
-        bucket_name = 'ghostbuster'
-        key = f"user_logs/{session_id}.json"  # unique for each user session
-        try:
-            s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
-        except Exception as e:
-            app.logger.error("Unable to upload log to S3: %s", e)
+    pass 
+    # user_log = user_logs.get(session_id)
+    # if user_log and user_log['essays']:
+    #     user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
+    #     log_json = json.dumps(user_log)
+    #     bucket_name = 'ghostbuster'
+    #     key = f"user_logs/{session_id}.json"  # unique for each user session
+    #     try:
+    #         s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
+    #     except Exception as e:
+    #         app.logger.error("Unable to upload log to S3: %s", e)
 
 
 @socketio.on('make_guess')
