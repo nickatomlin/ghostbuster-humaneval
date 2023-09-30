@@ -69,7 +69,7 @@ user_logs = {}
 
 @app.route("/")
 def index():
-    session_id = session.get('session_id', str(uuid.uuid4()))
+    session_id = str(session.get('session_id', uuid.uuid4()))
     session['session_id'] = session_id
     if session_id not in user_logs:
         user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
