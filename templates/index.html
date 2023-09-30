@@ -7,28 +7,61 @@
 </head>
 <body>
 <div class="container">
-    <div class="header"></div>
+    <div class="header">
         <h1>Were these essays written by humans or AI?</h1>
         <p>This is human evaluation for the <a href="https://arxiv.org/abs/2305.15047">Ghostbuster</a> project. We're trying to evaluate how difficult it is to distinguish between human written and AI-written text, in order to establish a baseline for our <a href="https://ghostbuster.app">model</a>.</p>
         <p>Your task is to read each essay displayed below and guess whether it was written by a human or an AI. Once you make a guess, you will immediately see whether you were correct, and a new essay will appear. Good luck!</p>
     </div>
     <div class="essay-container">
-        <p>{{ next_essay.text if next_essay else current_essay.text }}</p>
+        <div class="essay">
+            <p>{{ next_essay.text if next_essay else current_essay.text }}</p>
+        </div>
     </div>
     <div class="footer">
-        <form method="post" action="/">
-            <button type="submit" name="guess" value="{{ 'human' }}">Human</button>
-            <button type="submit" name="guess" value="{{ 'ai' }}">AI</button>
-        </form>
-        {% if correct is not none %}
+        <button type="button" class="guess-btn" value="human">Human</button>
+        <button type="button" class="guess-btn" value="ai">AI</button>
+
         <div class="feedback">
-            <p>You are {% if correct %}correct{% else %}wrong{% endif %}! This essay was written by {% if current_essay.source == 'ai' %}an AI{% else %}a human{% endif %}.</p>
         </div>
         <div class="stats">
-            <p>Your accuracy so far: {{ "%.1f"|format(accuracy) }}% ({{ examples_seen }} examples seen)</p>
         </div>
-        {% endif %}
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    var socket = io.connect(window.location.origin);
+    socket.on('connect', function() {
+        console.log('Connected to Server');
+    });
+
+    socket.on('result', function(data) {
+        var correct = data.correct;
+        var next_essay = data.next_essay;
+        var accuracy = data.accuracy;
+        var guess = data.guess;
+        
+        $(".essay p").text(next_essay ? next_essay.text : 'No more essays');
+        var feedbackText = 'You are ' + (correct ? 'correct' : 'wrong') + '! This essay was written by ' + (correct ? (guess == 'ai' ? 'an AI' : 'a human') : (guess == 'ai' ? 'a human' : 'an AI')) + '.';
+        $(".feedback").text(feedbackText);
+        var statsText = 'Your accuracy so far: ' + accuracy.toFixed(1) + '% (' + (data.current_index + 1) + ' examples seen)';
+        $(".stats").text(statsText);
+
+        $(".essay-container").animate({
+            scrollTop: 0
+        }, 500);
+    });
+
+    $(".guess-btn").click(function() {
+        var guess = $(this).val();
+        socket.emit('make_guess', {'guess': guess});
+    });
+});
+</script>
 </body>
 </html>
+
+
+
+

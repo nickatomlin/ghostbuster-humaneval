@@ -1,14 +1,19 @@
-import boto3
-import json
 import os
+import json
 import random
 import uuid
-
-from flask import Flask, render_template, session, request, g
+import boto3
+from flask import Flask, render_template, session, g
+from flask_socketio import SocketIO
 from flask_session import Session
 
-import os
-import json
+# Initialization and AWS Configuration
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
+socketio = SocketIO(app)  # Allow all origins
 
 # Try to get AWS credentials from environment variables first
 aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -35,19 +40,12 @@ if not aws_access_key_id or not aws_secret_access_key or not region_name:
 if not aws_access_key_id or not aws_secret_access_key or not region_name:
     raise ValueError("AWS credentials not found in environment variables or config.json.")
 
+# Setting up S3 client
 s3 = boto3.client('s3',
     aws_access_key_id=aws_access_key_id,
     aws_secret_access_key=aws_secret_access_key,
     region_name=region_name
 )
-
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
-app.config['SESSION_PERMANENT'] = True
-app.config['SESSION_TYPE'] = 'filesystem'  # or you can use 'redis', 'memcached', etc.
-Session(app)
-
-user_logs = {}
 
 def load_essays(folder):
     essays = []
@@ -59,51 +57,62 @@ def load_essays(folder):
 all_essays = load_essays('human') + load_essays('ai')
 random.shuffle(all_essays)
 
-@app.route("/", methods=['GET', 'POST'])
+user_logs = {}
+
+@app.route("/")
 def index():
-    session_id = g.session_id  # Get the session_id stored in the global object
-    print(f"Session ID: {session_id}")
-    print(f"User Logs Keys: {user_logs.keys()}")
-    
-    user_log = user_logs.get(session_id)
-    if user_log is None:
-        print("User log not found, initializing...")
-        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
-        user_log = user_logs[session_id]
-    
-    current_index = user_log['current_index']    
-    
-    if current_index >= len(all_essays):
-        accuracy = (user_log['correct_guesses'] / len(all_essays)) * 100
-        return render_template('index.html', end=True, accuracy=accuracy, examples_seen=len(all_essays))
-        
+    session_id = session.get('session_id', str(uuid.uuid4()))
+    session['session_id'] = session_id
+    user_logs[session_id] = user_logs.get(session_id, {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0})
+    user_log = user_logs[session_id]
+
+    current_index = user_log['current_index']
     current_essay = all_essays[current_index]
+    next_essay = all_essays[current_index + 1] if (current_index + 1) < len(all_essays) else None
+
+    return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
+def upload_to_s3(session_id):
+    user_log = user_logs.get(session_id)
+    if user_log and user_log['essays']:
+        user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
+        log_json = json.dumps(user_log)
+        bucket_name = 'ghostbuster'
+        key = f"user_logs/{session_id}.json"  # unique for each user session
+        try:
+            s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
+        except Exception as e:
+            app.logger.error("Unable to upload log to S3: %s", e)
+
+
+@socketio.on('make_guess')
+def handle_guess(data):
+    print("Received guess: " + str(data))
+    session_id = session.get('session_id')
+    user_log = user_logs[session_id]
+
+    guess = data.get('guess')
+    current_index = user_log['current_index']
+    current_essay = all_essays[current_index]
+
+    correct = (guess == current_essay['source'])
+    user_log['correct_guesses'] += correct
+    user_log['essays'].append({'essay': current_essay['text'], 'guess': guess, 'correct': correct})
+    user_log['current_index'] += 1
+
+    next_index = user_log['current_index']
+    next_essay = all_essays[next_index] if next_index < len(all_essays) else None
+
+    accuracy = (user_log['correct_guesses'] / user_log['current_index']) * 100
     
-    if request.method == 'POST':
-        guess = request.form.get('guess')
-        correct = (guess == current_essay['source'])
-        
-        if correct:
-            user_log['correct_guesses'] += 1
-        
-        user_log['essays'].append({
-            'essay': current_essay['text'],
-            'guess': guess,
-            'correct': correct
-        })
-        
-        user_log['current_index'] += 1  # move to the next essay
-        
-        if user_log['current_index'] < len(all_essays):
-            next_essay = all_essays[user_log['current_index']]
-            accuracy = (user_log['correct_guesses'] / user_log['current_index']) * 100
-            return render_template('index.html', correct=correct, current_essay=current_essay, next_essay=next_essay, accuracy=accuracy, examples_seen=user_log['current_index'])
-        else:
-            accuracy = (user_log['correct_guesses'] / len(all_essays)) * 100
-            return render_template('index.html', end=True, correct=correct, current_essay=current_essay, accuracy=accuracy, examples_seen=len(all_essays))
+    # Call upload_to_s3 after processing each guess
+    upload_to_s3(session_id)
     
-    next_essay = all_essays[user_log['current_index']]
-    return render_template('index.html', correct=None, current_essay=current_essay, next_essay=next_essay, accuracy=0, examples_seen=user_log['current_index'])
+    socketio.emit('result', {'correct': correct, 'next_essay': next_essay, 'accuracy': accuracy, 'guess': guess, 'current_index': current_index})
+
+# Remove or comment out the app.teardown_request decorator as it's not needed anymore.
+# @app.teardown_request
+# def upload_log(exception=None):
+#     # Function body here...
 
 
 @app.before_request
@@ -117,23 +126,5 @@ def before_request():
         session_id = session['session_id']
     g.session_id = session_id
 
-
-@app.teardown_request
-def upload_log(exception=None):
-    session_id = g.get('session_id')
-    if session_id:
-        user_log = user_logs.get(session_id)
-        if user_log and user_log['essays']:
-            user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
-            log_json = json.dumps(user_log)
-            bucket_name = 'ghostbuster'
-            key = f"user_logs/{session_id}.json"  # unique for each user session
-            try:
-                s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
-            except Exception as e:
-                app.logger.error("Unable to upload log to S3: %s", e)
-        # Remove the log from the dictionary after uploading to S3.
-        # user_logs.pop(session_id, None)
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)

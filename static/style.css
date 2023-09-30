@@ -24,16 +24,22 @@ p {
 }
 
 .essay-container {
-    width: 50%;
+    width: 100%;
     background: #fff;
-    /* 20px padding on left and right and 0px on top and bottom */
-    padding: 0 20px;
     margin: auto;
     margin-bottom: 20px;
     box-shadow: 2px 2px 12px #aaa;
     overflow-y: auto;
     height: 300px; /* Adjust the height as needed */
     resize: vertical;
+}
+
+.footer {
+    text-align: center;
+}
+
+.essay {
+    padding: 0 20px;
 }
 
 form {
@@ -58,6 +64,10 @@ button {
 button:hover {
     background-color: white;
     color: black;
+}
+
+.feedback {
+    margin-top: 20px;
 }
 
 .feedback, .stats {
