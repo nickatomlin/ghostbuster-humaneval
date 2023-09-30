@@ -1,6 +1,7 @@
 import os
 import json
 import random
+import redis
 import uuid
 import boto3
 from flask import Flask, render_template, session, g
@@ -10,8 +11,15 @@ from flask_session import Session
 # Initialization and AWS Configuration
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-app.config['SESSION_PERMANENT'] = True
-app.config['SESSION_TYPE'] = 'filesystem'
+# app.config['SESSION_PERMANENT'] = True
+# app.config['SESSION_TYPE'] = 'filesystem'
+
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'ghostbuster:'
+app.config['SESSION_REDIS'] = redis.from_url(os.environ.get('REDIS_URL') or 'redis://localhost:6379')
+
 Session(app)
 socketio = SocketIO(app)  # Allow all origins
 
@@ -75,7 +83,7 @@ def index():
         current_index = user_log['current_index']
         current_essay = all_essays[current_index]
         next_essay = all_essays[(current_index + 1) % len(all_essays)]
-        
+
     return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
 
 def upload_to_s3(session_id):
