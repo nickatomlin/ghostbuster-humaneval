@@ -61,29 +61,34 @@ user_logs = {}
 
 @app.route("/")
 def index():
-    # session_id = session.get('session_id', str(uuid.uuid4()))
-    # session['session_id'] = session_id
-    # user_logs[session_id] = user_logs.get(session_id, {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0})
-    # user_log = user_logs[session_id]
-
-    current_index = 0
-    current_essay = all_essays[current_index]
-    next_essay = all_essays[current_index + 1] if (current_index + 1) < len(all_essays) else None
-
+    session_id = session.get('session_id', str(uuid.uuid4()))
+    session['session_id'] = session_id
+    if session_id not in user_logs:
+        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
+        
+        # You can shuffle and pick the first essay here if needed or just pick the first one from the all_essays list.
+        current_essay = random.choice(all_essays)
+        next_essay_index = (all_essays.index(current_essay) + 1) % len(all_essays)
+        next_essay = all_essays[next_essay_index]
+    else:
+        user_log = user_logs[session_id]
+        current_index = user_log['current_index']
+        current_essay = all_essays[current_index]
+        next_essay = all_essays[(current_index + 1) % len(all_essays)]
+        
     return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
 
 def upload_to_s3(session_id):
-    pass 
-    # user_log = user_logs.get(session_id)
-    # if user_log and user_log['essays']:
-    #     user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
-    #     log_json = json.dumps(user_log)
-    #     bucket_name = 'ghostbuster'
-    #     key = f"user_logs/{session_id}.json"  # unique for each user session
-    #     try:
-    #         s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
-    #     except Exception as e:
-    #         app.logger.error("Unable to upload log to S3: %s", e)
+    user_log = user_logs.get(session_id)
+    if user_log and user_log['essays']:
+        user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
+        log_json = json.dumps(user_log)
+        bucket_name = 'ghostbuster'
+        key = f"user_logs/{session_id}.json"  # unique for each user session
+        try:
+            s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
+        except Exception as e:
+            app.logger.error("Unable to upload log to S3: %s", e)
 
 
 @socketio.on('make_guess')
@@ -117,16 +122,16 @@ def handle_guess(data):
 #     # Function body here...
 
 
-@app.before_request
-def before_request():
-    if 'session_id' not in session:
-        session_id = str(uuid.uuid4())
-        session['session_id'] = session_id  # store session_id in session to access it in other routes
-        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
-        print(f"New session_id created: {session_id}")
-    else:
-        session_id = session['session_id']
-    g.session_id = session_id
+# @app.before_request
+# def before_request():
+#     if 'session_id' not in session:
+#         session_id = str(uuid.uuid4())
+#         session['session_id'] = session_id  # store session_id in session to access it in other routes
+#         user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
+#         print(f"New session_id created: {session_id}")
+#     else:
+#         session_id = session['session_id']
+#     g.session_id = session_id
 
 # @app.teardown_request
 # def upload_log(exception=None):
