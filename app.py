@@ -4,7 +4,7 @@ import random
 import redis
 import uuid
 import boto3
-from flask import Flask, render_template, session, g
+from flask import Flask, render_template, session, g, request
 from flask_socketio import SocketIO
 from flask_session import Session
 
@@ -21,7 +21,7 @@ app.config['SESSION_KEY_PREFIX'] = 'ghostbuster:'
 app.config['SESSION_REDIS'] = redis.from_url(os.environ.get('REDIS_URL') or 'redis://localhost:6379')
 
 Session(app)
-socketio = SocketIO(app)  # Allow all origins
+socketio = SocketIO(app, manage_session=False)
 
 # Try to get AWS credentials from environment variables first
 aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -66,6 +66,17 @@ all_essays = load_essays('human') + load_essays('ai')
 random.shuffle(all_essays)
 
 user_logs = {}
+
+@socketio.on('connect')
+def handle_connect():
+    print("Client Connected")
+    print("Request SID: ", request.sid)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Client Disconnected")
+    print("Request SID: ", request.sid)
+
 
 @app.route("/")
 def index():
