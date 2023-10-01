@@ -72,10 +72,8 @@ def index():
     session_id = session.get('session_id')
     if not session_id:
         session_id = str(uuid.uuid4())
-        session_id = session_id.decode('utf-8')
         print(f"Setting session_id: {session_id}, Type: {type(session_id)}")  # Debugging line
         session['session_id'] = session_id
-    session_id = session_id.decode('utf-8')
     # session_id = str(session.get('session_id', uuid.uuid4()))
     # session['session_id'] = session_id
     if session_id not in user_logs:
