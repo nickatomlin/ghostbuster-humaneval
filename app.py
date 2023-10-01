@@ -21,7 +21,7 @@ app.config['SESSION_KEY_PREFIX'] = 'ghostbuster:'
 app.config['SESSION_REDIS'] = redis.from_url(os.environ.get('REDIS_URL') or 'redis://localhost:6379')
 
 Session(app)
-socketio = SocketIO(app, manage_session=False)
+socketio = SocketIO(app, manage_session=False, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 # Try to get AWS credentials from environment variables first
 aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
