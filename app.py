@@ -93,6 +93,7 @@ def index():
         current_essay = all_essays[current_index]
         next_essay = all_essays[(current_index + 1) % len(all_essays)]
 
+    print("About to return!")
     return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
 
 def upload_to_s3(session_id):
