@@ -70,10 +70,14 @@ user_logs = {}
 @app.route("/")
 def index():
     session_id = session.get('session_id')
+    print("session_id type before: ", type(session_id))
+    if isinstance(session_id, bytes):
+        session_id = session_id.decode('utf-8')
     if not session_id:
         session_id = str(uuid.uuid4())
         print(f"Setting session_id: {session_id}, Type: {type(session_id)}")  # Debugging line
         session['session_id'] = session_id
+    print("session_id type after: ", type(session_id))
     # session_id = str(session.get('session_id', uuid.uuid4()))
     # session['session_id'] = session_id
     if session_id not in user_logs:
