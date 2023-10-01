@@ -113,6 +113,10 @@ def upload_to_s3(session_id):
 def handle_guess(data):
     print("Received guess: " + str(data))
     session_id = session.get('session_id')
+    
+    if session_id not in user_logs:
+        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
+
     user_log = user_logs[session_id]
 
     guess = data.get('guess')
