@@ -10,7 +10,7 @@ from flask_session import Session
 
 # Initialization and AWS Configuration
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = "023189740318893127"
 # app.config['SESSION_PERMANENT'] = True
 # app.config['SESSION_TYPE'] = 'filesystem'
 
