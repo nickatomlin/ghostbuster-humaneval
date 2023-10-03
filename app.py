@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 import random
 import redis
 import uuid
@@ -63,6 +64,7 @@ def load_essays(folder):
     return essays
 
 all_essays = load_essays('human') + load_essays('ai')
+all_essays = all_essays
 random.shuffle(all_essays)
 
 user_logs = {}
@@ -77,23 +79,31 @@ def handle_connect():
     if sid not in user_logs:
         user_logs[sid] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
         
-        current_essay = random.choice(all_essays)
-        next_essay_index = (all_essays.index(current_essay) + 1) % len(all_essays)
-        next_essay = all_essays[next_essay_index]
-        
-        # Emit the essays to the client
-        socketio.emit('initialize_essays', {'current_essay': current_essay, 'next_essay': next_essay}, room=sid)
+        # Shuffle essays for this user
+        user_order = list(np.random.permutation(len(all_essays)))
+        user_order = [int(i) for i in user_order]
+        # user_essays = all_essays.copy()
+        # random.shuffle(user_essays)
+        user_logs[sid]['essays_order'] = user_order
 
+        current_essay = all_essays[user_order[0]]
+        # next_essay =  all_essays[user_order[1]]
+
+        # Emit the essays to the client
+        socketio.emit('initialize_essays', {'current_essay': current_essay}, room=sid)
+        
 @socketio.on('request_essays')
 def handle_request_essays():
     sid = request.sid
     user_log = user_logs.get(sid, {})
+    user_order = user_log.get('essays_order')
     current_index = user_log['current_index']
-    current_essay = all_essays[current_index]
-    next_essay = all_essays[(current_index + 1) % len(all_essays)]
-    
+
+    current_essay = all_essays[user_order[current_index]]
+    # next_essay = user_essays[(current_index + 1) % len(user_essays)]
+
     # Emit the essays to the client
-    socketio.emit('initialize_essays', {'current_essay': current_essay, 'next_essay': next_essay}, room=sid)
+    socketio.emit('initialize_essays', {'current_essay': current_essay}, room=sid)
 
 
 @socketio.on('disconnect')
@@ -116,9 +126,11 @@ def handle_guess(data):
         user_logs[request.sid] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
 
     user_log = user_logs[request.sid]
-    guess = data.get('guess')
+    user_order = user_log.get('essays_order')
     current_index = user_log['current_index']
-    current_essay = all_essays[current_index]
+    current_essay = all_essays[user_order[current_index]]
+
+    guess = data.get('guess')
 
     correct = (guess == current_essay['source'])
     user_log['correct_guesses'] += correct
@@ -126,7 +138,7 @@ def handle_guess(data):
     user_log['current_index'] += 1
 
     next_index = user_log['current_index']
-    next_essay = all_essays[next_index] if next_index < len(all_essays) else None
+    next_essay = all_essays[user_order[next_index]] if next_index < len(all_essays) else None
     accuracy = (user_log['correct_guesses'] / user_log['current_index']) * 100
     
     # Call upload_to_s3 after processing each guess
