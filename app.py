@@ -1,6 +1,5 @@
 import os
 import json
-import numpy as np
 import random
 import redis
 import uuid
@@ -80,8 +79,9 @@ def handle_connect():
         user_logs[sid] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
         
         # Shuffle essays for this user
-        user_order = list(np.random.permutation(len(all_essays)))
-        user_order = [int(i) for i in user_order]
+        user_order = list(range(len(all_essays)))
+        random.shuffle(user_order)
+        # user_order = [int(i) for i in user_order]
         # user_essays = all_essays.copy()
         # random.shuffle(user_essays)
         user_logs[sid]['essays_order'] = user_order
