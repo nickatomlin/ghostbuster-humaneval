@@ -14,7 +14,7 @@
     </div>
     <div class="essay-container">
         <div class="essay">
-            <p>{{ current_essay.text }}</p>
+            <p></p>
         </div>
     </div>
     <div class="footer">
@@ -34,6 +34,11 @@ $(document).ready(function() {
     var socket = io.connect(window.location.origin);
     socket.on('connect', function() {
         console.log('Connected to Server');
+        socket.emit('request_essays');
+    });
+
+    socket.on('initialize_essays', function(data) {
+        $(".essay p").text(data["current_essay"].text);
     });
 
     socket.on('result', function(data) {

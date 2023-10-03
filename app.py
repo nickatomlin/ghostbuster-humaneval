@@ -70,66 +70,52 @@ user_logs = {}
 @socketio.on('connect')
 def handle_connect():
     print("Client Connected")
-    print("Request SID: ", request.sid)
+    print("SocketIO SID: ", request.sid)
+    
+    # Initialize user logs upon connection
+    sid = request.sid
+    if sid not in user_logs:
+        user_logs[sid] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
+        
+        current_essay = random.choice(all_essays)
+        next_essay_index = (all_essays.index(current_essay) + 1) % len(all_essays)
+        next_essay = all_essays[next_essay_index]
+        
+        # Emit the essays to the client
+        socketio.emit('initialize_essays', {'current_essay': current_essay, 'next_essay': next_essay}, room=sid)
+
+@socketio.on('request_essays')
+def handle_request_essays():
+    sid = request.sid
+    user_log = user_logs.get(sid, {})
+    current_index = user_log['current_index']
+    current_essay = all_essays[current_index]
+    next_essay = all_essays[(current_index + 1) % len(all_essays)]
+    
+    # Emit the essays to the client
+    socketio.emit('initialize_essays', {'current_essay': current_essay, 'next_essay': next_essay}, room=sid)
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print("Client Disconnected")
     print("Request SID: ", request.sid)
+    # Consider cleaning up the user_logs dictionary if not needed anymore
+    user_logs.pop(request.sid, None)
 
 
 @app.route("/")
 def index():
-    session_id = session.get('session_id')
-    print("session_id type before: ", type(session_id))
-    if isinstance(session_id, bytes):
-        session_id = session_id.decode('utf-8')
-    if not session_id:
-        session_id = str(uuid.uuid4())
-        print(f"Setting session_id: {session_id}, Type: {type(session_id)}")  # Debugging line
-        session['session_id'] = session_id
-    print("session_id type after: ", type(session_id))
-    # session_id = str(session.get('session_id', uuid.uuid4()))
-    # session['session_id'] = session_id
-    if session_id not in user_logs:
-        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
-        
-        # You can shuffle and pick the first essay here if needed or just pick the first one from the all_essays list.
-        current_essay = random.choice(all_essays)
-        next_essay_index = (all_essays.index(current_essay) + 1) % len(all_essays)
-        next_essay = all_essays[next_essay_index]
-    else:
-        user_log = user_logs[session_id]
-        current_index = user_log['current_index']
-        current_essay = all_essays[current_index]
-        next_essay = all_essays[(current_index + 1) % len(all_essays)]
-
-    print("About to return!")
-    return render_template('index.html', current_essay=current_essay, next_essay=next_essay)
-
-def upload_to_s3(session_id):
-    user_log = user_logs.get(session_id)
-    if user_log and user_log['essays']:
-        user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
-        log_json = json.dumps(user_log)
-        bucket_name = 'ghostbuster'
-        key = f"user_logs/{session_id}.json"  # unique for each user session
-        try:
-            s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
-        except Exception as e:
-            app.logger.error("Unable to upload log to S3: %s", e)
-
+    return render_template('index.html')
 
 @socketio.on('make_guess')
 def handle_guess(data):
     print("Received guess: " + str(data))
-    session_id = session.get('session_id')
-    
-    if session_id not in user_logs:
-        user_logs[session_id] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
 
-    user_log = user_logs[session_id]
+    if request.sid not in user_logs:
+        user_logs[request.sid] = {'essays': [], 'total_accuracy': 0, 'correct_guesses': 0, 'current_index': 0}
 
+    user_log = user_logs[request.sid]
     guess = data.get('guess')
     current_index = user_log['current_index']
     current_essay = all_essays[current_index]
@@ -141,13 +127,25 @@ def handle_guess(data):
 
     next_index = user_log['current_index']
     next_essay = all_essays[next_index] if next_index < len(all_essays) else None
-
     accuracy = (user_log['correct_guesses'] / user_log['current_index']) * 100
     
     # Call upload_to_s3 after processing each guess
-    upload_to_s3(session_id)
+    upload_to_s3(request.sid)
     
-    socketio.emit('result', {'correct': correct, 'next_essay': next_essay, 'accuracy': accuracy, 'guess': guess, 'current_index': current_index})
+    socketio.emit('result', {'correct': correct, 'next_essay': next_essay, 'accuracy': accuracy, 'guess': guess, 'current_index': current_index}, room=request.sid)
+
+
+def upload_to_s3(sid):
+    user_log = user_logs.get(sid)
+    if user_log and user_log['essays']:
+        user_log['total_accuracy'] = "%.1f" % ((user_log['correct_guesses'] / (user_log['current_index'] or 1)) * 100)
+        log_json = json.dumps(user_log)
+        bucket_name = 'ghostbuster'
+        key = f"user_logs/{sid}.json"  # unique for each user session
+        try:
+            s3.put_object(Bucket=bucket_name, Key=key, Body=log_json, ContentType='application/json')
+        except Exception as e:
+            app.logger.error("Unable to upload log to S3: %s", e)
 
 # Remove or comment out the app.teardown_request decorator as it's not needed anymore.
 # @app.teardown_request
