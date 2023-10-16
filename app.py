@@ -62,8 +62,11 @@ def load_essays(folder):
             essays.append({'text': f.read(), 'source': folder})
     return essays
 
-all_essays = load_essays('human') + load_essays('ai')
-all_essays = all_essays
+# Force same number of essays from each source:
+human_essays = load_essays('human')
+ai_essays = load_essays('ai')
+min_essays = min(len(human_essays), len(ai_essays))
+all_essays = human_essays[:min_essays] + ai_essays[:min_essays]
 random.shuffle(all_essays)
 
 user_logs = {}
